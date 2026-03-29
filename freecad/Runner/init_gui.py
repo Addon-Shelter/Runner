@@ -1,33 +1,20 @@
-# Launcher widget for FreeCAD
-# Copyright (C) 2016, 2017, 2018 triplus @ FreeCAD
-#
-#
-# This library is free software; you can redistribute it and/or
-# modify it under the terms of the GNU Lesser General Public
-# License as published by the Free Software Foundation; either
-# version 2.1 of the License, or (at your option) any later version.
-#
-# This library is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-# Lesser General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public
-# License along with this library; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: 2016 Triplus
+# SPDX-FileNotice: Part of the Runner addon.
+
+from PySide6 import QtWidgets , QtCore , QtGui
+from FreeCAD import Gui
 
 
 def singleInstance():
     """
     Only have one instance of Launcher running.
     """
-    import FreeCADGui as Gui
-    from PySide import QtGui
 
     mw = Gui.getMainWindow()
 
     if mw:
-        for i in mw.findChildren(QtGui.QDockWidget):
+        for i in mw.findChildren(QtWidgets.QDockWidget):
             if i.objectName() == "Launcher":
                 i.deleteLater()
             else:
@@ -42,9 +29,6 @@ def dockWidget():
     """
     Launcher widget for FreeCAD
     """
-    import FreeCADGui as Gui
-    from PySide import QtGui
-    from PySide import QtCore
 
     mw = Gui.getMainWindow()
 
@@ -53,43 +37,46 @@ def dockWidget():
               </svg>"""
 
     iconPixmap = QtGui.QPixmap()
-    iconPixmap.loadFromData(str.encode(icon))
+    iconPixmap.loadFromData(QtCore.QByteArray(icon.encode()))
 
-    class LauncherEdit(QtGui.QLineEdit):
+    class LauncherEdit(QtWidgets.QLineEdit):
         """
         Define completer show/hide behavior.
         """
         def __init__(self, parent=None):
             super(LauncherEdit, self).__init__(parent)
 
-        def focusInEvent(self, e):
+        def focusInEvent(self, event : QtGui.QFocusEvent ):
             """
             Prevent updating model data after closing completer.
             """
-            if e.reason() == QtCore.Qt.PopupFocusReason:
+            if event.reason() == QtCore.Qt.FocusReason.PopupFocusReason:
                 pass
             else:
                 modelData()
 
-        def keyPressEvent(self, e):
+        def keyPressEvent(self, event : QtGui.QKeyEvent):
             """
             Show completer after down key is pressed.
             """
-            if e.key() == QtCore.Qt.Key_Down:
+            if event.key() == QtCore.Qt.Key.Key_Down:
                 edit.clear()
                 completer.setCompletionPrefix("")
                 completer.complete()
             else:
-                QtGui.QLineEdit.keyPressEvent(self, e)
+                QtWidgets.QLineEdit.keyPressEvent(self, event)
                 index = model.index(0, 0)
-                completer.popup().setCurrentIndex(index)
+                popup = completer.popup()
 
-    completer = QtGui.QCompleter()
+                if popup:
+                    popup.setCurrentIndex(index)
+
+    completer = QtWidgets.QCompleter()
     completer.setMaxVisibleItems(16)
-    completer.setCaseSensitivity(QtCore.Qt.CaseInsensitive)
+    completer.setCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
     try:
         # Qt 5.2 and up.
-        completer.setFilterMode(QtCore.Qt.MatchContains)
+        completer.setFilterMode(QtCore.Qt.MatchFlag.MatchContains)
     except AttributeError:
         pass
 
@@ -99,13 +86,13 @@ def dockWidget():
     model = QtGui.QStandardItemModel()
     completer.setModel(model)
 
-    widget = QtGui.QDockWidget()
+    widget = QtWidgets.QDockWidget()
     widget.setWindowTitle("Launcher")
     widget.setObjectName("Launcher")
     widget.setWidget(edit)
 
     if mw:
-        mw.addDockWidget(QtCore.Qt.LeftDockWidgetArea, widget)
+        mw.addDockWidget(QtCore.Qt.DockWidgetArea.LeftDockWidgetArea, widget)
     else:
         pass
 
@@ -149,7 +136,7 @@ def dockWidget():
                 item.setIcon(QtGui.QIcon(QtGui.QIcon(iconPixmap)))
             item.setToolTip(actions[i].toolTip())
             item.setEnabled(actions[i].isEnabled())
-            item.setData(actions[i].objectName(), QtCore.Qt.UserRole)
+            item.setData(actions[i].objectName(),QtCore.Qt.ItemDataRole.UserRole)
 
             model.setItem(row, 0, item)
             row += 1
@@ -163,27 +150,33 @@ def dockWidget():
         for i in mw.findChildren(QtGui.QAction):
             actions[i.objectName()] = i
 
-        index = completer.completionModel().mapToSource(modelIndex)
-        item = model.itemFromIndex(index)
-        data = item.data(QtCore.Qt.UserRole)
+        item_model = completer.completionModel()
 
-        if data in actions:
-            actions[data].trigger()
-        else:
-            pass
+        if isinstance(item_model,QtCore.QAbstractProxyModel):
 
-        edit.clear()
-        edit.clearFocus()
-        edit.setFocus()
+            index = item_model.mapToSource(modelIndex)
 
-    completer.activated[QtCore.QModelIndex].connect(onCompleter)
+            item = model.itemFromIndex(index)
+            data = item.data(QtCore.Qt.ItemDataRole.UserRole)
 
-    a = QtGui.QAction(mw)
-    mw.addAction(a)
-    a.setText("Launcher focus")
-    a.setObjectName("SetLauncherFocus")
-    a.setShortcut(QtGui.QKeySequence("Ctrl+Shift+Q"))
+            if data in actions:
+                actions[data].trigger()
+            else:
+                pass
 
-    a.triggered.connect(edit.setFocus)
+            edit.clear()
+            edit.clearFocus()
+            edit.setFocus()
+
+    completer.activated.connect(onCompleter)
+
+    action = QtGui.QAction(mw)
+    mw.addAction(action)
+    action.setText("Launcher focus")
+    action.setObjectName("SetLauncherFocus")
+    action.setShortcut(QtGui.QKeySequence("Ctrl+Shift+Q"))
+
+    action.triggered.connect(edit.setFocus)
+
 
 dockWidget()
