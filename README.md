@@ -19,3 +19,13 @@ Focus the runner search box and start typing, focus the
 command you want to run and press enter or click it.
 
 <br/>
+
+## Lifetime
+
+This fork / addon will be maintained until  
+the related [PR] has been merged into FreeCAD.
+
+<br/>
+
+
+[PR]: https://github.com/FreeCAD/FreeCAD/pull/25833
